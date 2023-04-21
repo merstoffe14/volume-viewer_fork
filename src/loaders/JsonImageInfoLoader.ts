@@ -17,7 +17,7 @@ class JsonImageInfoLoader implements IVolumeLoader {
     if (!this.imageInfo) {
       const response = await fetch(loadSpec.url);
       const myJson = await response.json();
-
+      console.log(loadSpec.url)
       const imageInfo = myJson as ImageInfo;
       imageInfo.pixel_size_unit = imageInfo.pixel_size_unit || "μm";
       this.imageInfo = imageInfo;

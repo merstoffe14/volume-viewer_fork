@@ -5,6 +5,12 @@ import Volume from "../Volume";
 
 import { fromUrl } from "geotiff";
 
+
+//remove these two lines
+//let server = "https://api.orbits-ongology.xyz";
+let server = "http://localhost:3000";
+
+
 function prepareXML(xml: string): string {
   // trim trailing unicode zeros?
   // eslint-disable-next-line no-control-regex
@@ -174,5 +180,8 @@ class TiffLoader implements IVolumeLoader {
     return vol;
   }
 }
+
+
+
 
 export { TiffLoader };

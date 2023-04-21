@@ -22,6 +22,7 @@ import {
 import { OpenCellLoader } from "../src/loaders/OpenCellLoader";
 import { State, TestDataSpec } from "./types";
 import { getDefaultImageInfo } from "../src/Volume";
+import { H5Loader } from "../src/loaders/H5Loader";
 
 const TEST_DATA: Record<string, TestDataSpec> = {
   timeSeries: {
@@ -38,7 +39,7 @@ const TEST_DATA: Record<string, TestDataSpec> = {
   },
   zarrVariance: {
     type: "omezarr",
-    url: "https://animatedcell-test-data.s3.us-west-2.amazonaws.com/variance/1.zarr",
+    url: "https://animatedcell-test-data.s3.Fus-west-2.amazonaws.com/variance/1.zarr",
     tstart: 0,
     tend: 0,
   },
@@ -870,6 +871,9 @@ function cacheTimeSeriesImageData(jsonData, frameNumber) {
 }
 
 function onChannelDataArrived(url, v, channelIndex, cacheForTimeSeries = false, frameNumber = 0) {
+  console.log("onChannelDataArrived")
+  console.log(cacheForTimeSeries)
+  console.log(v.isLoaded())
   if (cacheForTimeSeries) {
     if (v.isLoaded()) {
       const currentVol = cacheTimeSeriesImageData(v.imageInfo, frameNumber);
@@ -884,6 +888,7 @@ function onChannelDataArrived(url, v, channelIndex, cacheForTimeSeries = false, 
       if (frameNumber === 0) {
         copyVolumeToVolume(v, myState.volume);
         // has assumption that only 3 channels
+        console.log("view 3d ")
         view3D.onVolumeData(myState.volume, [0, 1, 2]);
         view3D.updateActiveChannels(myState.volume);
         view3D.updateLuts(myState.volume);
@@ -897,7 +902,7 @@ function onChannelDataArrived(url, v, channelIndex, cacheForTimeSeries = false, 
   }
 
   const currentVol = v; // myState.volume;
-
+  console.log(currentVol)
   currentVol.channels[channelIndex].lutGenerator_percentiles(0.5, 0.998);
   view3D.onVolumeData(currentVol, [channelIndex]);
   view3D.setVolumeChannelEnabled(currentVol, channelIndex, channelIndex < 3);
@@ -908,6 +913,7 @@ function onChannelDataArrived(url, v, channelIndex, cacheForTimeSeries = false, 
   if (currentVol.isLoaded()) {
     console.log("currentVol with name " + currentVol.name + " is loaded");
   }
+  console.log("redraw")
   view3D.redraw();
 }
 
@@ -957,7 +963,7 @@ function onVolumeCreated(volume: Volume, isTimeSeries = false, frameNumber = 0) 
   }
 
   myState.volume = volume;
-
+  console.log("updating render")
   view3D.removeAllVolumes();
   view3D.addVolume(myState.volume);
   setInitialRenderMode();
@@ -1101,6 +1107,56 @@ function createTestVolume() {
   };
   /* eslint-enable @typescript-eslint/naming-convention */
 
+  
+
+  // generate some raw volume data
+  const channelVolumes = [
+    VolumeMaker.createSphere(imgData.tile_width, imgData.tile_height, imgData.tiles, 24),
+    VolumeMaker.createTorus(imgData.tile_width, imgData.tile_height, imgData.tiles, 24, 8),
+    VolumeMaker.createCone(imgData.tile_width, imgData.tile_height, imgData.tiles, 24, 24),
+  ];
+  return {
+    imgData: imgData,
+    volumeData: channelVolumes,
+  };
+}
+
+function createH5Volume() {
+
+  /* eslint-disable @typescript-eslint/naming-convention */
+  const imgData: ImageInfo = {
+    // width := original full size image width
+    width: 64,
+    // height := original full size image height
+    height: 64,
+    channels: 3,
+    channel_names: ["DRAQ5", "EGFP", "SEG_Memb"],
+    rows: 8,
+    cols: 8,
+    // tiles <= rows*cols, tiles is number of z slices
+    tiles: 64,
+    tile_width: 64,
+    tile_height: 64,
+
+    // These dimensions are used to prepare the raw volume arrays for rendering as tiled texture atlases
+    // for webgl reasons, it is best for atlas_width and atlas_height to be <= 2048
+    // and ideally a power of 2. (adjust other dimensions accordingly)
+    // atlas_width === cols*tile_width
+    atlas_width: 512,
+    // atlas_height === rows*tile_height
+    atlas_height: 512,
+
+    pixel_size_x: 1,
+    pixel_size_y: 1,
+    pixel_size_z: 1,
+    name: "AICS-10_5_5",
+    version: "0.0.0",
+    pixel_size_unit: "",
+    transform: { translation: [0, 0, 0], rotation: [0, 0, 0] },
+    times: 1,
+  };
+  /* eslint-enable @typescript-eslint/naming-convention */
+
   // generate some raw volume data
   const channelVolumes = [
     VolumeMaker.createSphere(imgData.tile_width, imgData.tile_height, imgData.tiles, 24),
@@ -1115,12 +1171,13 @@ function createTestVolume() {
 
 function createLoader(type: string): IVolumeLoader {
   switch (type) {
-    case "opencell":
+    case "opencell": 
       return new OpenCellLoader();
     case "omezarr":
       return new OMEZarrLoader();
     case "ometiff":
-      return new TiffLoader();
+      // return new TiffLoader();
+      return new H5Loader();
     // case "procedural":
     //   return new RawVolumeLoader();
     case "jsonatlas":
@@ -1129,6 +1186,9 @@ function createLoader(type: string): IVolumeLoader {
       throw new Error("Unknown loader type: " + type);
   }
 }
+
+
+
 
 function loadVolume(loadSpec: LoadSpec, loader: IVolumeLoader, cacheTimeSeries) {
   loader
@@ -1144,14 +1204,15 @@ function loadVolume(loadSpec: LoadSpec, loader: IVolumeLoader, cacheTimeSeries) 
 
 function loadTestData(testdata: TestDataSpec) {
   if (testdata.type === "procedural") {
-    const volumeInfo = createTestVolume();
+    // const volumeInfo = createTestVolume();
+    const volumeInfo = createH5Volume();
     loadImageData(volumeInfo.imgData, volumeInfo.volumeData);
     return;
   }
 
   const loader: IVolumeLoader = createLoader(testdata.type);
   myState.loader = loader;
-
+  console.log(testdata.tend)
   const isTimeSeries = testdata.tend > testdata.tstart;
   for (let t = testdata.tstart; t <= testdata.tend; t++) {
     // replace %% with frame number
@@ -1160,11 +1221,12 @@ function loadTestData(testdata: TestDataSpec) {
     const loadSpec = new LoadSpec();
     loadSpec.url = url;
     loadSpec.time = t;
+    console.log("here?")
     loadVolume(loadSpec, loader, isTimeSeries);
   }
   myState.totalFrames = testdata.tend - testdata.tstart + 1;
 }
-
+ 
 function main() {
   const el = document.getElementById("volume-viewer");
   if (!el) {
@@ -1178,6 +1240,7 @@ function main() {
     const testdata = TEST_DATA[selected];
     if (testdata) {
       loadTestData(testdata);
+      
     }
   });
 

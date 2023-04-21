@@ -123,6 +123,7 @@ class OMEZarrLoader implements IVolumeLoader {
 
   async createVolume(loadSpec: LoadSpec, onChannelLoaded: PerChannelCallback): Promise<Volume> {
     const store = new HTTPStore(loadSpec.url);
+    console.log(loadSpec.url)
 
     const imagegroup = loadSpec.subpath;
 

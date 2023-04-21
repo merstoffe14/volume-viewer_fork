@@ -297,6 +297,7 @@ export default class Volume {
    * @param {number} atlasheight
    */
   setChannelDataFromAtlas(channelIndex: number, atlasdata: Uint8Array, atlaswidth: number, atlasheight: number): void {
+    console.log("break here")
     this.channels[channelIndex].setBits(atlasdata, atlaswidth, atlasheight);
     this.channels[channelIndex].unpackVolumeFromAtlas(this.x, this.y, this.z);
     this.onChannelLoaded([channelIndex]);
@@ -309,6 +310,7 @@ export default class Volume {
    * @param {Uint8Array} volumeData
    */
   setChannelDataFromVolume(channelIndex: number, volumeData: Uint8Array): void {
+   
     this.channels[channelIndex].setFromVolumeData(
       volumeData,
       this.x,
